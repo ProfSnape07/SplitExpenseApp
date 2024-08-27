@@ -1,3 +1,4 @@
+import os
 import tkinter as tk
 
 from database import check_database_structure
@@ -16,6 +17,9 @@ class SplitExpenseApp(tk.Tk):
         super().__init__()
         self.title("SplitExpense")
         self.geometry("500x500")
+        icon_path = "res/icon.ico"
+        full_icon_path = os.path.join(os.path.dirname(__file__), icon_path)
+        self.iconbitmap(full_icon_path)
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
         self.container = None
