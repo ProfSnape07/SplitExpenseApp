@@ -16,7 +16,7 @@ class SplitExpenseApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("SplitExpense")
-        self.geometry("500x500")
+        self.geometry("600x600")
         icon_path = "res/icon.ico"
         full_icon_path = os.path.join(os.path.dirname(__file__), icon_path)
         self.iconbitmap(full_icon_path)
