@@ -100,6 +100,7 @@ class InitialSetup(tk.Frame):
             is_correct_file = check_database_structure()
             if is_correct_file:
                 messagebox.showinfo("Success", "You have successfully imported from backup.")
+                self.controller.refresh_homepage()
                 self.controller.show_home_page()
             else:
                 messagebox.showerror("Error", "Not a valid backup file or corrupted file.")
