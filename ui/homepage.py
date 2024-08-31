@@ -54,14 +54,17 @@ class HomePage(tk.Frame):
         add_profile_button = tk.Button(buttons_frame, text="Add Profile", command=self.add_profile)
         add_profile_button.pack(side='left', padx=0, pady=10)
 
-        view_expense_button = tk.Button(buttons_frame, text="View Group", command=self.view_group)
-        view_expense_button.pack(side="right", padx=0, pady=10)
-
         add_group_button = tk.Button(buttons_frame, text="Add Group", command=self.add_group)
         add_group_button.pack(side='left', padx=20, pady=10)
 
         add_group_button = tk.Button(buttons_frame, text="Add Expense", command=self.add_expense)
         add_group_button.pack(side='left', padx=0, pady=10)
+
+        view_expense_button = tk.Button(buttons_frame, text="View Group", command=self.view_group)
+        view_expense_button.pack(side="right", padx=0, pady=10)
+
+        setting_button = tk.Button(buttons_frame, text="Settings", command=self.view_settings)
+        setting_button.pack(side="right", padx=20, pady=10)
 
     def add_profile(self):
         self.groups_listbox.selection_clear(0, tk.END)
@@ -94,3 +97,8 @@ class HomePage(tk.Frame):
         self.groups_listbox.selection_clear(0, tk.END)
         self.focus_set()
         self.controller.show_group_details(group_id)
+
+    def view_settings(self):
+        self.groups_listbox.selection_clear(0, tk.END)
+        self.focus_set()
+        self.controller.show_settings()

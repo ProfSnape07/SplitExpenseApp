@@ -10,6 +10,7 @@ from ui.expense_details import ExpenseDetails
 from ui.group_details import GroupDetails
 from ui.homepage import HomePage
 from ui.initial_page import InitialSetup
+from ui.settings import Settings
 
 
 class SplitExpenseApp(tk.Tk):
@@ -17,8 +18,8 @@ class SplitExpenseApp(tk.Tk):
         super().__init__()
         self.title("SplitExpense")
         self.geometry("600x600")
-        icon_path = "res/icon.ico"
-        full_icon_path = os.path.join(os.path.dirname(__file__), icon_path)
+        icon_path = "res\\icon.ico"
+        full_icon_path = os.path.join(os.getcwd(), icon_path)
         self.iconbitmap(full_icon_path)
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -33,11 +34,9 @@ class SplitExpenseApp(tk.Tk):
         self.container.pack(fill="both", expand=True)
 
         if self.initial_setup_complete:
-            self.frames["HomePage"] = HomePage(self.container, self)
-            self.show_frame("HomePage")
+            self.show_home_page()
         else:
-            self.frames["InitialSetup"] = InitialSetup(self.container, self)
-            self.show_frame("InitialSetup")
+            self.show_initial_setup()
 
     def show_frame(self, frame_name):
         for frame in self.frames.values():
@@ -45,6 +44,10 @@ class SplitExpenseApp(tk.Tk):
 
         frame = self.frames[frame_name]
         frame.pack(fill="both", expand=True)
+
+    def show_initial_setup(self):
+        self.frames["InitialSetup"] = InitialSetup(self.container, self)
+        self.show_frame("InitialSetup")
 
     def show_home_page(self):
         if "HomePage" not in self.frames:
@@ -95,6 +98,11 @@ class SplitExpenseApp(tk.Tk):
         if f"g_id:{group_id}" not in self.frames:
             self.frames[f"g_id:{group_id}"] = BalanceDetails(self.container, self, group_id)
         self.show_frame(f"g_id:{group_id}")
+
+    def show_settings(self):
+        if "Settings" not in self.frames:
+            self.frames["Settings"] = Settings(self.container, self)
+        self.show_frame("Settings")
 
     def on_group_update(self):
         self.refresh_homepage()
