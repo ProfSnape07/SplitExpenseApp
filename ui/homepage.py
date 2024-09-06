@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
 
-from database import get_groups, get_admin_assets, get_admin_name, group_exists
+from database import get_groups, get_admin_assets, get_admin_name
 
 
 class HomePage(tk.Frame):
@@ -10,8 +10,8 @@ class HomePage(tk.Frame):
         self.config(bg="white")
         self.controller = controller
 
-        self.admin_name = get_admin_name().split()[-1]
-        self.a_debt_amount = get_admin_assets()
+        self.admin_name = get_admin_name(self.controller.get_db_key()).split()[-1]
+        self.a_debt_amount = get_admin_assets(self.controller.get_db_key())
         if self.a_debt_amount >= 0:
             self.a_debt = "assets"
             self.a_debt_color = "green"
@@ -21,13 +21,13 @@ class HomePage(tk.Frame):
             self.a_debt_color = "red"
             self.a_debt_amount = "$ " + format(abs(self.a_debt_amount), ".2f")
 
-        self.groups = get_groups()
+        self.groups = {}  # groups[self.groups_listbox] = group_id
         self.groups_listbox = None
 
         self.create_widgets()
 
     def create_widgets(self):
-        label = tk.Label(self, text=f"{self.admin_name}! Your total {self.a_debt} is:", font=("Arial", 22))
+        label = tk.Label(self, text=f"{self.admin_name}! Your total {self.a_debt} are:", font=("Arial", 22))
         label.pack(fill="x")
         label.config(bg="white", anchor="center", pady=5)
         total_label = tk.Label(self, text=self.a_debt_amount, font=("Arial", 20))
@@ -39,8 +39,12 @@ class HomePage(tk.Frame):
         groups_label.config(bg="white", anchor="nw", padx=35, pady=5)
 
         self.groups_listbox = tk.Listbox(self, font=("Harrington", 20, "bold"))
-        for name, group_id in self.groups.items():
-            self.groups_listbox.insert(group_id, name)
+        groups = get_groups(self.controller.get_db_key())
+        index = 0
+        for name, group_id in groups.items():
+            self.groups_listbox.insert(index, name)
+            self.groups[index] = group_id
+            index += 1
         self.groups_listbox.pack(fill='both', expand=1, padx=35, pady=0)
 
         s = tk.Scrollbar(self.groups_listbox, orient=tk.VERTICAL)
@@ -77,7 +81,7 @@ class HomePage(tk.Frame):
         self.controller.show_create_group()
 
     def add_expense(self):
-        if not group_exists():
+        if not self.groups:
             messagebox.showerror("Warning", "You must create a group first.")
             return
         self.groups_listbox.selection_clear(0, tk.END)
@@ -85,15 +89,13 @@ class HomePage(tk.Frame):
         self.controller.show_edit_add_expense_details()
 
     def view_group(self):
-        if not group_exists():
+        if not self.groups:
             messagebox.showerror("Warning", "You must create a group first.")
             return
-        selected_group_index = self.groups_listbox.curselection()
-        if len(selected_group_index) == 0:
+        if not self.groups_listbox.curselection():
             messagebox.showerror("Error", "No groups selected")
             return
-        group_name = self.groups_listbox.get(selected_group_index)
-        group_id = self.groups[group_name]
+        group_id = self.groups[self.groups_listbox.curselection()[0]]
         self.groups_listbox.selection_clear(0, tk.END)
         self.focus_set()
         self.controller.show_group_details(group_id)

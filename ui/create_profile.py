@@ -67,7 +67,7 @@ class CreateProfile(tk.Frame):
         contact = self.contact.get()
         if name and contact:
             try:
-                add_profile(name, contact)
+                add_profile(name, contact, self.controller.get_db_key())
                 messagebox.showinfo("Success", "Profile added successfully!")
                 self.clear_entry()
                 self.controller.on_profile_update()

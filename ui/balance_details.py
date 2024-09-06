@@ -12,7 +12,7 @@ class BalanceDetails(tk.Frame):
         self.controller = controller
 
         self.group_id = group_id
-        self.group_name = get_group_name(self.group_id)
+        self.group_name = get_group_name(self.group_id, self.controller.get_db_key())
         self.balance_listbox = None
         self.not_available_for_selection = []
         self.selected_value_dict = {}
@@ -61,7 +61,7 @@ class BalanceDetails(tk.Frame):
         self.not_available_for_selection.clear()
         self.selected_value_dict.clear()
         index = 0
-        member_debts_assets = get_member_debts_assets(self.group_id)
+        member_debts_assets = get_member_debts_assets(self.group_id, self.controller.get_db_key())
         profile_assets = {}
         profile_debts = {}
         for i in member_debts_assets:
@@ -75,13 +75,13 @@ class BalanceDetails(tk.Frame):
             transactions = profile_assets[profile_id]
             total_assets = sum(i[1] for i in transactions)
             total_assets = round(total_assets, 2)
-            receiver_name = get_profile_name(profile_id)
+            receiver_name = get_profile_name(profile_id, self.controller.get_db_key())
             self.balance_listbox.insert(tk.END, f"{receiver_name} will get $ {format(total_assets, ".2f")}:")
             self.not_available_for_selection.append(index)
             index += 1
             for transaction in transactions:
                 payee_id = transaction[0]
-                payee_name = get_profile_name(payee_id)
+                payee_name = get_profile_name(payee_id, self.controller.get_db_key())
                 amount = transaction[1]
                 debt_amount = amount
                 amount = format(amount, ".2f")
@@ -109,13 +109,13 @@ class BalanceDetails(tk.Frame):
             transactions = profile_debts[profile_id]
             total_debts = sum(i[1] for i in transactions)
             total_debts = round(total_debts, 2)
-            payee_name = get_profile_name(profile_id)
+            payee_name = get_profile_name(profile_id, self.controller.get_db_key())
             self.balance_listbox.insert(tk.END, f"{payee_name} will pay $ {format(total_debts, ".2f")}:")
             self.not_available_for_selection.append(index)
             index += 1
             for transaction in transactions:
                 receiver_id = transaction[0]
-                receiver_name = get_profile_name(receiver_id)
+                receiver_name = get_profile_name(receiver_id, self.controller.get_db_key())
                 amount = this_debt = transaction[1]
                 amount = format(amount, ".2f")
                 amount = "$ " + str(amount)
@@ -130,11 +130,11 @@ class BalanceDetails(tk.Frame):
 
     def simplify_balance(self):
         self.flag = True
-        debt_assets = {}  # debt_assets[member_id] = debt/assets
-        debt_dict = {}
-        assets_dict = {}
-        transactions = get_member_debts_assets(self.group_id)
-        amount_0_member_debts_assets(self.group_id)
+        debt_assets = {}  # debt_assets[member_id] = debt/asset
+        debt_dict = {}  # debt_dict[member_id] = debt
+        assets_dict = {}  # assets_dict[member_id] = asset
+        transactions = get_member_debts_assets(self.group_id, self.controller.get_db_key())
+        amount_0_member_debts_assets(self.group_id, self.controller.get_db_key())
         for transaction in transactions:
             receiver_id = transaction[1]
             payee_id = transaction[2]
@@ -142,27 +142,31 @@ class BalanceDetails(tk.Frame):
             if receiver_id not in debt_assets:
                 debt_assets[receiver_id] = 0
             debt_assets[receiver_id] += amount
+            debt_assets[receiver_id] = round(debt_assets[receiver_id], 2)
             if payee_id not in debt_assets:
                 debt_assets[payee_id] = 0
             debt_assets[payee_id] -= amount
+            debt_assets[payee_id] = round(debt_assets[payee_id], 2)
 
-        for profile_id in debt_assets.keys():
-            if debt_assets[profile_id] > 0:
-                assets_dict[profile_id] = debt_assets[profile_id]
-            elif debt_assets[profile_id] < 0:
-                debt_dict[profile_id] = debt_assets[profile_id]
+        for profile_id, debt_asset in debt_assets.items():
+            if debt_asset > 0:
+                assets_dict[profile_id] = debt_asset
+            elif debt_asset < 0:
+                debt_dict[profile_id] = debt_asset
+
         for receiver_id in assets_dict.keys():
             for payee_id in debt_dict.keys():
                 assets = assets_dict[receiver_id]
                 debt = debt_dict[payee_id]
                 debt = abs(debt)
                 if assets > debt:
-                    update_member_debts_assets(self.group_id, receiver_id, payee_id, debt)
+                    update_member_debts_assets(self.group_id, receiver_id, payee_id, debt, self.controller.get_db_key())
                     assets_dict[receiver_id] -= debt
                     debt_dict[payee_id] += debt
                 # elif assets <= debt:
                 else:
-                    update_member_debts_assets(self.group_id, receiver_id, payee_id, assets)
+                    update_member_debts_assets(self.group_id, receiver_id, payee_id, assets,
+                                               self.controller.get_db_key())
                     assets_dict[receiver_id] -= assets
                     debt_dict[payee_id] += assets
                     break

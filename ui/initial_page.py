@@ -1,9 +1,11 @@
+import hashlib
 import os
 import shutil
 import tkinter as tk
 from tkinter import messagebox, filedialog
 
-from database import add_admin_profile, initialize_db, check_database_structure
+from database import add_admin_profile, initialize_db, check_database_structure, add_miscellaneous, \
+    check_password_required
 
 
 class InitialSetup(tk.Frame):
@@ -14,6 +16,9 @@ class InitialSetup(tk.Frame):
 
         self.name = None
         self.contact = None
+        self.encryption_required = tk.IntVar()
+        self.encryption_key = None
+        self.show_warning = True
 
         self.create_widgets()
 
@@ -39,6 +44,17 @@ class InitialSetup(tk.Frame):
         self.contact.insert(0, "Contact (Mobile/E-mail)")
         self.contact.bind("<FocusIn>", self.clear_contact)
         self.contact.bind("<FocusOut>", self.contact_placeholder)
+
+        self.encryption_key = tk.Entry(frame, font=("Arial", 20), fg="#424242", highlightthickness=3)
+        self.encryption_key.pack(fill="x", padx=5, pady=10)
+        self.encryption_key.insert(0, "Password")
+        self.encryption_key.config(state="disabled")
+        self.encryption_key.bind("<FocusIn>", self.clear_encryption_key)
+        self.encryption_key.bind("<FocusOut>", self.encryption_key_placeholder)
+
+        encryption_button = tk.Checkbutton(frame, bg="white", text="Encryption Required", font=("Arial", 16),
+                                           variable=self.encryption_required, command=self.encryption_on_off)
+        encryption_button.pack(side="left", padx=5, pady=10)
 
         button = tk.Frame(self, bg="white", pady=10)
         button.pack(fill="x")
@@ -72,19 +88,44 @@ class InitialSetup(tk.Frame):
             self.contact.insert(0, "Contact (Mobile/E-mail)")
             self.contact.config(fg="#424242")
 
+    def clear_encryption_key(self, *_event):
+        if self.encryption_key.get() == "Password":
+            self.encryption_key.config(show="*")
+            self.encryption_key.delete(0, tk.END)
+            self.encryption_key.config(fg="black")
+
+    def encryption_key_placeholder(self, *_event):
+        if not self.encryption_key.get():
+            self.encryption_key.config(show="")
+            self.encryption_key.insert(0, "Password")
+            self.encryption_key.config(fg="#424242")
+
     def add_admin_profile(self):
         admin_name = self.name.get()
         admin_contact = self.contact.get()
+        key = self.encryption_key.get()
         if self.name.get() == "Name":
             admin_name = None
         if self.contact.get() == "Contact (Mobile/E-mail)":
             admin_contact = None
-        if admin_name and admin_contact:
-            initialize_db()
-            add_admin_profile(admin_name, admin_contact)
-            self.controller.show_home_page()
+        if self.encryption_key.get() == "Password":
+            key = None
+
+        if self.encryption_required.get():
+            if admin_name and admin_contact and key:
+                key = hashlib.sha256(key.encode()).hexdigest()
+                self.controller.set_db_key(key)
+            else:
+                messagebox.showerror("Error", "Name, contact and password are required.")
         else:
-            messagebox.showerror("Error", "Name and contact are required.")
+            if admin_name and admin_contact:
+                pass
+            else:
+                messagebox.showerror("Error", "Name and contact are required.")
+        initialize_db()
+        add_admin_profile(admin_name, admin_contact, key)
+        add_miscellaneous("app_name", "SplitExpense", key)
+        self.controller.show_home_page()
 
     def install_backup(self):
         initial_dir = os.path.join(os.path.expanduser("~"), "Downloads")
@@ -97,12 +138,30 @@ class InitialSetup(tk.Frame):
                 shutil.copy(filepath, destination_path)
             except shutil.SameFileError:
                 pass
-            is_correct_file = check_database_structure()
-            if is_correct_file:
+            if check_database_structure():
                 messagebox.showinfo("Success", "You have successfully imported from backup.")
+                if check_password_required():
+                    self.controller.show_encryption_key()
+                    return
                 self.controller.refresh_homepage()
                 self.controller.show_home_page()
             else:
                 messagebox.showerror("Error", "Not a valid backup file or corrupted file.")
         else:
             messagebox.showwarning("Error", "No file selected.")
+
+    def encryption_on_off(self):
+        if self.encryption_required.get() == 1:
+            if self.show_warning:
+                self.show_warning = not messagebox.askyesno("Warning",
+                                                            "Note: Loosing your password will lock you out of your "
+                                                            "data, only your password can decrypt your data, "
+                                                            "there is no option to forgot your password.\nClick Yes "
+                                                            "if you don't want to see this warning again.")
+            self.encryption_key.config(state="normal")
+            self.clear_encryption_key()
+            self.encryption_key.focus_set()
+        else:
+            self.encryption_key.delete(0, tk.END)
+            self.encryption_key_placeholder()
+            self.encryption_key.config(state="disabled")

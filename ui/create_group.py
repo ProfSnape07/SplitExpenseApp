@@ -56,7 +56,7 @@ class CreateGroup(tk.Frame):
         self.load_all_profiles()
 
     def load_all_profiles(self):
-        profiles = get_profiles()
+        profiles = get_profiles(self.controller.get_db_key())
         self.members_listbox.delete(0, tk.END)
         self.profile_ids.clear()
         for index, (profile_id, name, contact) in enumerate(profiles):
@@ -73,7 +73,7 @@ class CreateGroup(tk.Frame):
 
         if name and profile_ids:
             try:
-                add_group(name, profile_ids)
+                add_group(name, profile_ids, self.controller.get_db_key())
                 messagebox.showinfo("Success", "Group created successfully!")
                 self.clear_entry()
                 self.controller.on_group_update()

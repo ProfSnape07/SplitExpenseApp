@@ -4,6 +4,7 @@
 /build/
 /dist/
 /ui/__pycache__
+/power_functions.py
 /rough_page.py
 /rough_page_2.py
 /split_expense.db

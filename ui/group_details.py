@@ -11,7 +11,7 @@ class GroupDetails(tk.Frame):
         self.controller = controller
 
         self.group_id = g_id
-        self.group_name = get_group_name(self.group_id)
+        self.group_name = get_group_name(self.group_id, self.controller.get_db_key())
         self.expenses_listbox = None
         self.expenses = []
         self.expenses_id = {}
@@ -58,7 +58,7 @@ class GroupDetails(tk.Frame):
         b6.pack(side="right", padx=0)
 
     def load_expense(self):
-        self.expenses = get_group_expenses(self.group_id)
+        self.expenses = get_group_expenses(self.group_id, self.controller.get_db_key())
         self.expenses_listbox.delete(0, tk.END)
         for index, i in enumerate(self.expenses):
             expense_id = i[0]
@@ -105,7 +105,7 @@ class GroupDetails(tk.Frame):
             t = self.expenses_listbox.curselection()[0]
             t //= 3
             expense_id = self.expenses_id[t]
-            delete_expense(expense_id)
+            delete_expense(expense_id, self.controller.get_db_key())
             self.focus_set()
             self.controller.on_expense_update(self.group_id)
         else:

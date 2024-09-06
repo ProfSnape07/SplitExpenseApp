@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import messagebox
 
 from database import add_expense, get_groups, get_members, get_expense, get_group_name, get_profile_involved, \
-    get_profile_by_id, get_profile_name, get_profile_id, update_expense, get_group_id, get_admin_id
+    get_profile_by_id, get_profile_name, update_expense
 
 
 class AddExpense(tk.Frame):
@@ -21,7 +21,9 @@ class AddExpense(tk.Frame):
         self.user_listbox = None
         self.add_button = None
         self.label = None
-        self.profiles = list()  # helps getting member_ids before inserting in database.
+        self.groups = {}  # groups[name] = group_id
+        self.profiles_id = {}  # profiles_id[index] = profile_id
+        self.payee_id = {}  # payee_id[name] = profile_id
         self.is_edit = False
         self.expense_id = None
 
@@ -109,8 +111,8 @@ class AddExpense(tk.Frame):
         self.load_groups()
 
     def load_groups(self):
-        group_dict = get_groups()
-        group_list = list(group_dict.keys())
+        self.groups = get_groups(self.controller.get_db_key())
+        group_list = list(self.groups.keys())
         self.selected_group.set(group_list[0])
         menu = self.group_options["menu"]
         menu.delete(0, "end")
@@ -130,38 +132,42 @@ class AddExpense(tk.Frame):
         self.user_listbox.delete(0, tk.END)
         menu = self.payee_options["menu"]
         menu.delete(0, tk.END)
-        group_id = get_group_id(selection)
-        self.profiles = get_members(group_id)
-        for profile_id, name, contact in self.profiles:
-            self.user_listbox.insert(tk.END, f"{name}, {contact}")
+        group_id = self.groups[selection]
+        profiles = get_members(group_id, self.controller.get_db_key())
+        index = 0
+        self.profiles_id.clear()
+        self.payee_id.clear()
+        for profile_id, name, contact in profiles:
+            self.user_listbox.insert(index, f"{name}, {contact}")
             menu.add_command(label=name, command=lambda value=name: self.selected_payee.set(value))
+            self.profiles_id[index] = profile_id
+            self.payee_id[name] = profile_id
+            index += 1
         menu = self.payee_options.nametowidget(self.payee_options.menuname)
         menu.config(font=("Arial", 14))
-        self.selected_payee.set(self.profiles[0][1])
+        self.selected_payee.set(profiles[0][1])
 
     def add_update_expense(self):
         selected_group = self.selected_group.get()
-        group_id = get_group_id(selected_group)
+        group_id = self.groups[selected_group]
         payee_name = self.selected_payee.get()
-        payee_id = get_profile_id(payee_name)
+        payee_id = self.payee_id[payee_name]
         amount = self.amount_entry_box.get()
-        admin_id = get_admin_id()
         try:
             amount = float(amount)
         except ValueError:
-            pass
+            messagebox.showerror("Error", "Amount can't be empty.")
+            return
         description = self.expense_description_entry.get()
         selected_member_indices = self.user_listbox.curselection()
-        member_ids = [self.profiles[i][0] for i in selected_member_indices]
+        member_ids = [self.profiles_id[i] for i in selected_member_indices]
         if amount and description and selected_group and member_ids:
             if self.is_edit:
-                update_expense(self.expense_id, payee_id, amount, description, member_ids)
+                update_expense(self.expense_id, payee_id, amount, description, member_ids, self.controller.get_db_key())
+                messagebox.showinfo("Success", "Expense updated successfully!")
             else:
-                add_expense(group_id, payee_id, amount, description, member_ids)
-                self.controller.on_group_update()
-            messagebox.showinfo("Success", "Expense added successfully!")
-            if admin_id == payee_id or admin_id in member_ids:
-                self.controller.refresh_homepage()
+                add_expense(group_id, payee_id, amount, description, member_ids, self.controller.get_db_key())
+                messagebox.showinfo("Success", "Expense added successfully!")
             self.controller.on_expense_update(group_id)
             self.clear_entry()
         else:
@@ -184,12 +190,12 @@ class AddExpense(tk.Frame):
     def edit_expense_id(self, expense_id):
         self.is_edit = True
         self.expense_id = expense_id
-        expense = get_expense(expense_id)
+        expense = get_expense(expense_id, self.controller.get_db_key())
         expense_id = expense[0]
         group_id = expense[1]
-        group_name = get_group_name(group_id)
+        group_name = get_group_name(group_id, self.controller.get_db_key())
         payee_id = expense[2]
-        payee_name = get_profile_name(payee_id)
+        payee_name = get_profile_name(payee_id, self.controller.get_db_key())
         amount = expense[3]
         description = expense[4]
 
@@ -200,28 +206,25 @@ class AddExpense(tk.Frame):
         menu = self.group_options["menu"]
         menu.delete(0, tk.END)
         self.selected_group.set(group_name)
+        self.user_listbox.delete(0, tk.END)
         self.label.config(text=f"Edit Expense from {group_name}")
         self.add_button.config(text="Save")
 
-        profile_id_involved = get_profile_involved(expense_id)
-        profile_id_involved = list(profile_id_involved.keys())
-        profile_involved = [get_profile_by_id(i) for i in profile_id_involved]
-
-        self.profiles = profile_involved
-        end = len(self.profiles)
-        all_members_of_group = get_members(group_id)
+        profile_id_involved_share = get_profile_involved(expense_id, self.controller.get_db_key())
+        end = len(profile_id_involved_share)
+        profile_involved = [get_profile_by_id(profile_id, self.controller.get_db_key()) for profile_id in
+                            profile_id_involved_share.keys()]
+        all_members_of_group = get_members(group_id, self.controller.get_db_key())
         for member in all_members_of_group:
-            if member not in self.profiles:
-                self.profiles.append(member)
-        self.user_listbox.delete(0, tk.END)
-        payee_menu = self.payee_options["menu"]
-        payee_menu.delete(0, tk.END)
+            if member not in profile_involved:
+                profile_involved.append(member)
 
-        for index, (profile_id, name, contact) in enumerate(self.profiles):
-            self.user_listbox.insert(tk.END, f"{name}, {contact}")
-            payee_menu.add_command(label=name, command=lambda value=name: self.selected_payee.set(value))
-        menu = self.payee_options.nametowidget(self.payee_options.menuname)
-        menu.config(font=("Arial", 14))
+        self.profiles_id.clear()
+        index = 0
+        for profile_id, name, contact in profile_involved:
+            self.user_listbox.insert(index, f"{name}, {contact}")
+            self.profiles_id[index] = profile_id
+            index += 1
         self.user_listbox.selection_set(0, end - 1)
         self.selected_payee.set(payee_name)
 
@@ -232,9 +235,9 @@ class AddExpense(tk.Frame):
         self.load_profiles()
 
     def settle_expense(self, group_id, receiver_id, payee_id, amount):
-        group_name = get_group_name(group_id)
-        payee_name = get_profile_name(payee_id)
-        receiver_name = get_profile_name(receiver_id)
+        group_name = get_group_name(group_id, self.controller.get_db_key())
+        payee_name = get_profile_name(payee_id, self.controller.get_db_key())
+        receiver_name = get_profile_name(receiver_id, self.controller.get_db_key())
 
         self.amount_entry_box.delete(0, tk.END)
         self.amount_entry_box.insert(tk.END, amount)
@@ -244,9 +247,12 @@ class AddExpense(tk.Frame):
         menu.delete(0, tk.END)
         self.selected_group.set(group_name)
         self.load_profiles()
+        menu = self.payee_options["menu"]
+        menu.delete(0, tk.END)
+        self.selected_payee.set(payee_name)
+        for index, profile_id in self.profiles_id.items():
+            if profile_id == receiver_id:
+                self.user_listbox.selection_set(index)
+
         self.label.config(text=f"Settle Expense from {group_name}")
         self.add_button.config(text="Settle")
-
-        self.selected_payee.set(payee_name)
-        receiver_index = self.profiles.index(get_profile_by_id(receiver_id))
-        self.user_listbox.selection_set(receiver_index)

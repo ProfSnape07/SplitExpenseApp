@@ -19,10 +19,9 @@ class ExpenseDetails(tk.Frame):
         self.create_widgets()
         self.load_expense_details()
 
-    @staticmethod
-    def group_name(expense_id):
+    def group_name(self, expense_id):
         group_id = get_group_id_expense_id(expense_id)
-        group_name = get_group_name(group_id)
+        group_name = get_group_name(group_id, self.controller.get_db_key())
         return group_name
 
     def create_widgets(self):
@@ -59,14 +58,14 @@ class ExpenseDetails(tk.Frame):
 
     def load_expense_details(self):
         expense_id = self.expense_id
-        expense = get_expense(expense_id)
-        profile_involved_dict = get_profile_involved(expense_id)
+        expense = get_expense(expense_id, self.controller.get_db_key())
+        profile_involved_dict = get_profile_involved(expense_id, self.controller.get_db_key())
         profile_involved_list = list(profile_involved_dict.keys())
-        profile_name_list = [(get_profile_name(i), i) for i in profile_involved_list]
+        profile_name_list = [(get_profile_name(i, self.controller.get_db_key()), i) for i in profile_involved_list]
 
         self.group_id = expense[1]
         payee_id = expense[2]
-        payee_name = get_profile_name(payee_id)
+        payee_name = get_profile_name(payee_id, self.controller.get_db_key())
         amount = expense[3]
         description = expense[4]
         date = expense[5]
@@ -90,7 +89,7 @@ class ExpenseDetails(tk.Frame):
 
     def delete_expense(self):
         expense_id = self.expense_id
-        delete_expense(expense_id)
+        delete_expense(expense_id, self.controller.get_db_key())
         self.controller.on_expense_update(self.group_id)
         messagebox.showinfo("Success", "Expense Deleted")
         self.go_back()
